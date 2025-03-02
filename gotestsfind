@@ -1,0 +1,38 @@
+#!/bin/bash
+
+CACHE_FILE=".go_test_cache"
+
+find_and_run() {
+    if [[ ! -f $CACHE_FILE ]]; then
+        echo "Cache not found. Please run '$0 refresh' to create the cache."
+        exit 1
+    fi
+
+    selected_test=$(cat $CACHE_FILE | fzf --prompt="Select a test to run: ")
+
+    if [[ -n $selected_test ]]; then
+        echo "go test -run=\"^$selected_test$\" ./... -v"
+        go test -run="^$selected_test$" ./... -v | grep -Ev '^\?|^FAIL$|^PASS$|^testing:|^Test:|^ok\s|^FAIL\s'
+    else
+        echo "No test selected."
+    fi
+}
+
+refresh_cache() {
+    echo "Refreshing test cache..."
+     go test ./... -v | grep -E '^\s*--- (PASS|FAIL):' | awk '{print $3}' > $CACHE_FILE
+    echo "Cache refreshed."
+}
+
+case "$1" in
+    find)
+        find_and_run
+        ;;
+    refresh)
+        refresh_cache
+        ;;
+    *)
+        echo "Usage: $0 {findAndRun|refresh}"
+        exit 1
+        ;;
+esac
