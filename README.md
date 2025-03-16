@@ -10,12 +10,16 @@ WIP Feature:
 - Move to flag based system.
 
 Flag that is planned:
-- `-d` : debug the subtest via delve
+- `-d` : debug the subtest via delve => DONE
+- `-l` : list. Print all currently cache test => DONE
+- `-c` : clear cache => DONE
+- `-r` : refresh cache => DONE
+- `-h` : help command => IN PROGRESS
+
+-> see a possibility to either utilize / bring feature from gotestsum => like test failed only...
+
+- `-u` : script version update
 - `-v` : verbose (for error). Can also be used to provide more details on the test...
-- `-l` : list. Print all currently cache test
-- `-c` : clear cache
-- `-r` : refresh cache
-- `-h` : help command
 
 - Custom go test flag: https://github.com/gotestyourself/gotestsum?tab=readme-ov-file#custom-go-test-command
 
