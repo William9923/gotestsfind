@@ -1,38 +1,124 @@
 #!/bin/bash
 
 CACHE_FILE=".go_test_cache"
+VERSION_NUMBER="0.1.0"
+
+check_cache_exist() {
+  if [[ ! -f $CACHE_FILE ]]; then
+    echo "Cache not found. Please run '$0 refresh' to create the cache."
+    exit 1
+  fi
+}
 
 find_and_run() {
-    if [[ ! -f $CACHE_FILE ]]; then
-        echo "Cache not found. Please run '$0 refresh' to create the cache."
-        exit 1
-    fi
+  check_cache_exist
+  selected_test=$(cat $CACHE_FILE | fzf --prompt="Select a test to run: ")
 
-    selected_test=$(cat $CACHE_FILE | fzf --prompt="Select a test to run: ")
+  if [[ -n $selected_test ]]; then
+    echo "go test -run=\"^$selected_test$\" ./... -v"
+    go test -run="^$selected_test$" ./... -v | grep -Ev '^\?|^FAIL$|^PASS$|^testing:|^Test:|^ok\s|^FAIL\s'
+  else
+    echo "No test selected."
+  fi
+}
 
-    if [[ -n $selected_test ]]; then
-        echo "go test -run=\"^$selected_test$\" ./... -v"
-        go test -run="^$selected_test$" ./... -v | grep -Ev '^\?|^FAIL$|^PASS$|^testing:|^Test:|^ok\s|^FAIL\s'
-    else
-        echo "No test selected."
-    fi
+find_and_debug() {
+  check_cache_exist
+  selected_test=$(cat $CACHE_FILE | fzf --prompt="Select a test to run: ")
+  if [[ -n $selected_test ]]; then
+    echo "dlv test -- -test.run=\"^$selected_test$\""
+    dlv test -- -test.run="^$selected_test$"
+  else
+    echo "No test selected."
+  fi
+
 }
 
 refresh_cache() {
+  local verbose=false
+  if [[ "$1" == "verbose" ]]; then
+    verbose=true
+  fi
+
+  if $verbose; then
     echo "Refreshing test cache..."
-     go test ./... -v | grep -E '^\s*--- (PASS|FAIL):' | awk '{print $3}' > $CACHE_FILE
+  fi
+  go test ./... -v | grep -E '^\s*--- (PASS|FAIL):' | awk '{print $3}' >$CACHE_FILE
+
+  if $verbose; then
     echo "Cache refreshed."
+  fi
+
+}
+
+version_info() {
+  printf "%s\n" "gotestsfind-v$VERSION_NUMBER"
+  exit 0
+}
+
+clear_cache() {
+  if [ -f "$CACHE_FILE" ]; then
+    rm "$CACHE_FILE"
+  else
+    printf "%s\n" "No go tests cache detected"
+  fi
+}
+
+list_tests() {
+  if [ -f "$CACHE_FILE" ]; then
+    cat "$CACHE_FILE"
+  else
+    printf "%s\n" "No go tests cache detected. Please refresh test cache to continue"
+  fi
+}
+
+help_info() {
+  printf "
+    Usage:
+    gotestsfind [options] [query]
+
+    Options:
+      -f, --find
+        Find and execute go tests / subtests
+      -d, --debug
+        Find and debug go tests / subtests. Require dlv! 
+      -r, --refresh
+        Refresh current go tests & subtests data into cache
+      -l, --list
+        List all tests & subtests tracked in the cache
+      -c, --clear
+        Clear tracked tests & subtests in the cache
+      -v, --version
+        Show gotestsfind version
+    \n" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}"
+  exit 0
 }
 
 case "$1" in
-    find)
-        find_and_run
-        ;;
-    refresh)
-        refresh_cache
-        ;;
-    *)
-        echo "Usage: $0 {findAndRun|refresh}"
-        exit 1
-        ;;
+-f | --find)
+  find_and_run
+  ;;
+-d | --debug)
+  find_and_debug
+  ;;
+-r | --refresh)
+  refresh_cache verbose
+  ;;
+-l | --list)
+  refresh_cache
+  list_tests
+  ;;
+-c | --clear)
+  clear_cache
+  ;;
+-v | --version)
+  version_info
+  ;;
+-h | --help)
+  help_info
+  ;;
+*)
+  help_info
+  exit 1
+  ;;
 esac
